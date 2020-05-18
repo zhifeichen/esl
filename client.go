@@ -30,6 +30,7 @@ type Client struct {
 	Timeout     int    `json:"freeswitch_connection_timeout"`
 	filter      *filter
 	running     bool
+	chnClosed   chan struct{}
 	eventFormat string
 	events      string
 }
@@ -97,16 +98,17 @@ func (c *Client) Authenticate() error {
 // against connected freeswitch server
 func NewClient(host string, port uint16, passwd string, timeout int) (*Client, error) {
 	client := Client{
-		Proto:   "tcp", // Let me know if you ever need this open up lol
-		Addr:    net.JoinHostPort(host, strconv.Itoa(int(port))),
-		Passwd:  passwd,
-		Timeout: timeout,
-		running: false,
+		Proto:     "tcp", // Let me know if you ever need this open up lol
+		Addr:      net.JoinHostPort(host, strconv.Itoa(int(port))),
+		Passwd:    passwd,
+		Timeout:   timeout,
+		running:   false,
+		chnClosed: make(chan struct{}),
 	}
 
 	filter := filter{
-		bgapi: bgapiFilter{cb: make(map[string]BgapiCallback)},
-		event: eventFilter{cb: make(map[string]EventCallback)},
+		bgapi:  bgapiFilter{cb: make(map[string]BgapiCallback)},
+		event:  eventFilter{cb: make(map[string]EventCallback)},
 		header: headerFilter{cb: make([]*headerFilterItem, 0, 5)},
 	}
 	client.filter = &filter
@@ -116,8 +118,10 @@ func NewClient(host string, port uint16, passwd string, timeout int) (*Client, e
 
 // BgapiCallback bgapi callback func
 type BgapiCallback func(header map[string]string, body string)
+
 // EventCallback event file callback func
 type EventCallback func(eventName string, header map[string]string, body string)
+
 // HeaderFilterCallback filter by header field callback func
 type HeaderFilterCallback func(name, value string, header map[string]string, body string)
 
@@ -202,12 +206,10 @@ func (c *Client) Events(format, events string) error {
 
 func (c *Client) process() {
 	go c.Handle()
-	done := make(chan struct{})
 loop:
 	for {
 		msg, err := c.ReadMessage()
 		if err != nil {
-			done <- struct{}{}
 			break loop
 		}
 
@@ -263,7 +265,7 @@ loop:
 	}
 }
 
-func (c *Client) loop(connected chan <-struct{}) {
+func (c *Client) loop(connected chan<- struct{}) {
 	var once sync.Once
 	for c.running {
 		err := c.EstablishConnection()
@@ -284,6 +286,7 @@ func (c *Client) loop(connected chan <-struct{}) {
 		c.Send(fmt.Sprintf("event %s %s", c.eventFormat, c.events))
 		c.process()
 	}
+	c.chnClosed <- struct{}{}
 }
 
 // Start start process loop
@@ -310,4 +313,5 @@ func (c *Client) Start(format, events string) error {
 func (c *Client) Stop() {
 	c.running = false
 	c.Close()
+	<-c.chnClosed
 }
