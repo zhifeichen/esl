@@ -8,6 +8,7 @@ package esl
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -16,6 +17,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/zhifeichen/log"
 )
 
@@ -163,6 +165,41 @@ func (c *Client) BgAPI(cmd, uuid string, cb BgapiCallback) error {
 	}
 	c.filter.bgapi.cb[uuid] = cb
 	return nil
+}
+
+// APIWithTimeout send api cmd and set callback with timeout
+func (c *Client) APIWithTimeout(cmd string, duration time.Duration) (map[string]string, string, error) {
+	ctx, cancel := context.WithTimeout(context.TODO(), duration)
+	defer cancel()
+
+	uuid := uuid.New().String()
+	log.Debugf("api with timout, cmd: %s; duration: %d\n", cmd, duration)
+
+	get := make(chan struct{}, 1)
+	var resHeader map[string]string
+	var resBody string
+	c.filter.bgapi.Lock()
+	c.filter.bgapi.cb[uuid] = func(header map[string]string, body string) {
+		get <- struct{}{}
+		resHeader = header
+		resBody = body
+	}
+	c.filter.bgapi.Unlock()
+
+	err := c.SendBgAPIUUID(cmd, uuid)
+	if err != nil {
+		return nil, "", err
+	}
+
+	select {
+	case <-get:
+		return resHeader, resBody, nil
+	case <-ctx.Done():
+		c.filter.bgapi.Lock()
+		delete(c.filter.bgapi.cb, uuid)
+		c.filter.bgapi.Unlock()
+		return nil, "", ErrTimeout
+	}
 }
 
 // SendBgAPI - Helper designed to attach bgapi in front of the command so that you do not need to write it

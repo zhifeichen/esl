@@ -4,6 +4,9 @@ import (
 	"encoding/json"
 	"flag"
 	"runtime"
+	"strconv"
+	"strings"
+	"time"
 
 	"github.com/chzyer/readline"
 	"github.com/google/uuid"
@@ -30,8 +33,8 @@ func main() {
 
 	// log.SetOutput(rl.Stderr())
 	log.Init(log.NewOptions(
-		log.Level("info"),
-		log.Writers(rl.Stderr()),
+		log.Level("trace"),
+		log.Writers(rl.Stdout()),
 	))
 
 	// Boost it as much as it can go ...
@@ -82,6 +85,38 @@ func main() {
 		}
 		if cmd == "bye" {
 			break
+		}
+		if strings.Compare(cmd[:4], "api ") == 0 {
+			var api []string
+			if strings.Contains(cmd, `"`) {
+				api = strings.Split(cmd, `"`)
+			} else if strings.Contains(cmd, `'`) {
+				api = strings.Split(cmd, `'`)
+			} else {
+				api = strings.Split(cmd, " ")
+			}
+			// api := strings.Split(cmd, " ")
+			if len(api) < 2 {
+				continue
+			}
+			log.Debugf("%q\n", api)
+			duration := time.Second
+			if len(api) > 2 {
+				dstr := strings.TrimSpace(api[2])
+				dint, err := strconv.Atoi(dstr)
+				log.Debugf("dstr: %s, dint: %d\n", dstr, dint)
+				if err != nil {
+					duration = time.Duration(dint) * time.Second
+				}
+			}
+			h, b, err := client.client.APIWithTimeout(api[1], duration)
+			if err != nil {
+				log.Error(err)
+				continue
+			}
+			log.Info("header: ", h)
+			log.Info("body: ", b)
+			continue
 		}
 		jobuuid := uuid.New().String()
 		client.client.BgAPI(cmd, jobuuid, func(h map[string]string, body string) {

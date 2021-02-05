@@ -27,6 +27,7 @@ var (
 	ErrInvalidPassword         = errors.New("Could not authenticate against freeswitch with provided password")
 	ErrCouldNotCreateMessage   = errors.New("Error while creating new message")
 	ErrCouldNotSendEvent       = errors.New("Must send at least one event header")
+	ErrTimeout                 = errors.New("opration timeout")
 )
 
 type eslError struct {
