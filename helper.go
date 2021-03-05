@@ -3,8 +3,8 @@ package esl
 import (
 	"context"
 
-	"github.com/zhifeichen/esl/command"
-	"github.com/zhifeichen/esl/command/call"
+	"github.com/zhifeichen/esl/v2/command"
+	"github.com/zhifeichen/esl/v2/command/call"
 )
 
 // EnableEvent subscribe event format and type

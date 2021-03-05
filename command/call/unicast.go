@@ -1,7 +1,7 @@
 package call
 
 import (
-	"github.com/zhifeichen/esl/command"
+	"github.com/zhifeichen/esl/v2/command"
 	"net"
 	"net/textproto"
 )

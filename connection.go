@@ -16,7 +16,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/zhifeichen/esl/command"
+	"github.com/zhifeichen/esl/v2/command"
 	"github.com/zhifeichen/log"
 )
 

@@ -2,7 +2,7 @@ package call
 
 import (
 	"fmt"
-	"github.com/zhifeichen/esl/command"
+	"github.com/zhifeichen/esl/v2/command"
 	"net/textproto"
 	"strconv"
 )

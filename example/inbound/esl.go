@@ -3,7 +3,7 @@ package main
 import (
 	"strings"
 
-	"github.com/zhifeichen/esl"
+	"github.com/zhifeichen/esl/v2"
 	"github.com/zhifeichen/log"
 )
 
