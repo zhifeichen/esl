@@ -1,7 +1,7 @@
 package main
 
 import (
-	"encoding/json"
+	"context"
 	"flag"
 	"runtime"
 	"strconv"
@@ -9,7 +9,8 @@ import (
 	"time"
 
 	"github.com/chzyer/readline"
-	"github.com/google/uuid"
+	"github.com/zhifeichen/esl"
+	"github.com/zhifeichen/esl/command"
 	"github.com/zhifeichen/log"
 )
 
@@ -40,6 +41,8 @@ func main() {
 	// Boost it as much as it can go ...
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
+	log.Infof("connect to %s:%d\n", *fshost, *fsport)
+
 	client := eslclient{
 		host: *fshost,
 		port: uint16(*fsport),
@@ -56,18 +59,12 @@ func main() {
 
 	log.Debugf("%#v", client)
 
-	client.client.FilterEvent("CDR", func(en string, h map[string]string, body string) {
-		log.Debugf("got event[%s]\n", en)
-		log.Debug("header: ", h)
-		log.Debug("body: ", body)
+	client.client.FilterEvent("CDR", func(e *esl.Event) {
+		log.Debugf("got event[%s]: %#v\n", e.GetName(), e)
 	})
 
-	client.client.FilterEvent("CHANNEL_HANGUP_COMPLETE", func(en string, h map[string]string, body string) {
-		j, _ := json.Marshal(h)
-
-		log.Infof("got event[%s]\n", en)
-		log.Info("header: ", string(j))
-		log.Info("body: ", body)
+	client.client.FilterEvent("CHANNEL_HANGUP_COMPLETE", func(e *esl.Event) {
+		log.Debugf("got event[%s]: %#v\n", e.GetName(), e)
 	})
 
 	rl.ResetHistory()
@@ -84,6 +81,7 @@ func main() {
 			continue
 		}
 		if cmd == "bye" {
+			client.stop()
 			break
 		}
 		if strings.Compare(cmd[:4], "api ") == 0 {
@@ -109,20 +107,28 @@ func main() {
 					duration = time.Duration(dint) * time.Second
 				}
 			}
-			h, b, err := client.client.APIWithTimeout(api[1], duration)
+			ctx, cancel := context.WithTimeout(context.TODO(), duration)
+			resp, err := client.client.SendCommand(ctx, command.API{Command: api[1]})
 			if err != nil {
 				log.Error(err)
 				continue
 			}
-			log.Info("header: ", h)
-			log.Info("body: ", b)
+			log.Infof("response: %#v", resp)
+			cancel()
 			continue
 		}
-		jobuuid := uuid.New().String()
-		client.client.BgAPI(cmd, jobuuid, func(h map[string]string, body string) {
-			log.Info("header: ", h)
-			log.Info("body: ", body)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		client.client.SendCommand(ctx, command.API{Command: cmd, Background: true}, func(e *esl.Event) {
+			log.Infof("response: %#v\n", e)
+			log.Infof("event name: %s\n", e.GetHeader("Event-Name"))
+			contentLength := e.GetHeader("Content-Length")
+			log.Infof("content length: %s\n", contentLength)
+			if len(contentLength) > 0 {
+				log.Infof("body: %s\n", string(e.Body))
+			}
 		})
+		cancel()
 	}
 	rl.Clean()
 }

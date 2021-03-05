@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"strings"
 
 	"github.com/zhifeichen/esl"
@@ -46,19 +45,15 @@ var (
 	// }
 	headerFilters = []struct {
 		h, v string
-		cb   esl.HeaderFilterCallback
+		cb   esl.EventHandler
 	}{
-		{"Event-Subclass", "sofia::register", func(h, v string, hs map[string]string, body string) {
-			j, _ := json.Marshal(hs)
-			log.Infof("got %s: %s\n", h, v)
-			log.Info("headers: ", string(j))
-			log.Info("body: ", body)
+		{"Event-Subclass", "sofia::register", func(e *esl.Event) {
+			log.Infof("got Event-Subclass: %s\n", e.GetHeader("Event-Subclass"))
+			log.Infof("event: %#v\n", e.String())
 		}},
-		{"Event-Subclass", "sofia::unregister", func(h, v string, hs map[string]string, body string) {
-			j, _ := json.Marshal(hs)
-			log.Infof("got %s: %s\n", h, v)
-			log.Info("headers: ", string(j))
-			log.Info("body: ", body)
+		{"Event-Subclass", "sofia::unregister", func(e *esl.Event) {
+			log.Infof("got Event-Subclass: %s\n", e.GetHeader("Event-Subclass"))
+			log.Infof("event: %#v\n", e.String())
 		}},
 	}
 )
@@ -66,8 +61,10 @@ var (
 func (c *eslclient) start() error {
 	client, err := esl.NewClient(c.host, c.port, c.auth, 3)
 	if err != nil {
+		log.Error(err)
 		return err
 	}
+	log.Infof("%#v\n", client)
 	c.client = client
 	err = c.client.Start("plain", strings.Join(events, " "))
 	if err != nil {

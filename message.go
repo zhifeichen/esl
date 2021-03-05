@@ -31,9 +31,22 @@ type Message struct {
 	tr *textproto.Reader
 }
 
+// EndOfMessage message end
+const EndOfMessage = "\r\n\r\n"
+
 // String - Will return message representation as string
-func (m *Message) String() string {
-	return fmt.Sprintf("%v body=%s", m.Headers, m.Body)
+func (m Message) String() string {
+	var builder strings.Builder
+	for key, values := range m.Headers {
+		builder.WriteString(fmt.Sprintf("%s: %#v\n", key, values))
+	}
+	builder.Write(m.Body)
+	return builder.String()
+}
+
+// GoString implement the GoStringer interface for pretty printing (%#v)
+func (m Message) GoString() string {
+	return m.String()
 }
 
 // GetCallUUID - Will return Caller-Unique-Id
