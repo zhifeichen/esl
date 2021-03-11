@@ -10,7 +10,7 @@ import (
 )
 
 // OutboundHandler connection handler
-type OutboundHandler func(ctx context.Context, conn *Connection, response *RawResponse)
+type OutboundHandler func(ctx context.Context, conn *Connection)
 
 // ListenAndServe outbound server
 func ListenAndServe(addr string, handler OutboundHandler) error {
@@ -40,19 +40,19 @@ func ListenAndServe(addr string, handler OutboundHandler) error {
 }
 
 func (c *Connection) outboundHandle(handler OutboundHandler) {
-	ctx, cancel := context.WithTimeout(c.runningContext, 3 * time.Second)
-	resp, err := c.SendCommand(ctx, command.Connect{})
-	cancel()
-	if err != nil {
-		log.Errorf("Error connecting to %s error %s\n", c.conn.RemoteAddr().String(), err.Error())
-		c.Close()
-		return
-	}
+	// ctx, cancel := context.WithTimeout(c.runningContext, 3 * time.Second)
+	// resp, err := c.SendCommand(ctx, command.Connect{})
+	// cancel()
+	// if err != nil {
+	// 	log.Errorf("Error connecting to %s error %s\n", c.conn.RemoteAddr().String(), err.Error())
+	// 	c.Close()
+	// 	return
+	// }
 
-	handler(c.runningContext, c, resp)
+	handler(c.runningContext, c)
 
 	time.Sleep(25 * time.Millisecond)
-	ctx, cancel = context.WithTimeout(c.runningContext, 3 * time.Second)
+	ctx, cancel := context.WithTimeout(c.runningContext, 3 * time.Second)
 	c.SendCommand(ctx, command.Exit{})
 	cancel()
 	c.ExitAndClose()

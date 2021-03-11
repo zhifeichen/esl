@@ -13,12 +13,20 @@ func main() {
 	log.Fatal(esl.ListenAndServe(":8888", handle))
 }
 
-func handle(ctx context.Context, conn *esl.Connection, response *esl.RawResponse) {
+func handle(ctx context.Context, conn *esl.Connection) {
 	conn.EnableEvent(ctx, "ALL")
 	conn.FilterEvent(esl.EventListenAll, func(e *esl.Event) {
 		log.Infof("got event %s\n", e.GetName())
 	})
 
+	// ctx, cancel := context.WithTimeout(c.runningContext, 3 * time.Second)
+	response, err := conn.SendCommand(ctx, command.Connect{})
+	// cancel()
+	if err != nil {
+		log.Errorf("Error connecting to %s error %s\n", conn.RemoteAddr().String(), err.Error())
+		conn.Close()
+		return
+	}
 
 	log.Infof("Got connection!: %#v\n", response)
 	log.Infof("response is ok? %t\n", response.IsOk())

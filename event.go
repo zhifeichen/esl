@@ -149,6 +149,16 @@ func (e Event) GetHeader(header string) string {
 	return value
 }
 
+// ChannelUUID Helper to get the channel UUID. Calls GetHeader internally
+func (e Event) ChannelUUID() string {
+	return e.GetHeader("Unique-ID")
+}
+
+// GetVariable Helper function to get "Variable_" headers. Calls GetHeader internally
+func (e Event) GetVariable(variable string) string {
+	return e.GetHeader(fmt.Sprintf("Variable_%s", variable))
+}
+
 // String Implement the Stringer interface for pretty printing (%v)
 func (e Event) String() string {
 	var builder strings.Builder

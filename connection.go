@@ -73,6 +73,16 @@ func newConnect(c net.Conn, outbound bool) *Connection {
 	return instance
 }
 
+// RemoteAddr return connection remote addr
+func (c *Connection) RemoteAddr() net.Addr {
+	return c.conn.RemoteAddr()
+}
+
+// LocalAddr return connection local addr
+func (c *Connection) LocalAddr() net.Addr {
+	return c.conn.LocalAddr()
+}
+
 // ExitAndClose send exit and close connection
 func (c *Connection) ExitAndClose() {
 	c.closeOnce.Do(func() {
