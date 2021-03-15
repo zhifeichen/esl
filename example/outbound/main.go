@@ -9,22 +9,39 @@ import (
 	"github.com/zhifeichen/log"
 )
 
+const (
+	channelHangup          = "CHANNEL_HANGUP"
+	channelHangupComplete  = "CHANNEL_HANGUP_COMPLETE"
+	channelExecuteComplete = "CHANNEL_EXECUTE_COMPLETE"
+)
+
 func main() {
 	log.Fatal(esl.ListenAndServe(":8888", handle))
 }
 
 func handle(ctx context.Context, conn *esl.Connection) {
-	conn.EnableEvent(ctx, "ALL")
-	conn.FilterEvent(esl.EventListenAll, func(e *esl.Event) {
-		log.Infof("got event %s\n", e.GetName())
-	})
-
-	// ctx, cancel := context.WithTimeout(c.runningContext, 3 * time.Second)
 	response, err := conn.SendCommand(ctx, command.Connect{})
-	// cancel()
 	if err != nil {
 		log.Errorf("Error connecting to %s error %s\n", conn.RemoteAddr().String(), err.Error())
 		conn.Close()
+		return
+	}
+
+	conn.EnableEvent(ctx, "ALL")
+	// eventChn := make(chan *esl.Event, 10)
+	// go eventHandle(ctx, conn, eventChn)
+	conn.FilterEvent(esl.EventListenAll, func(event *esl.Event) {
+		log.Infof("got event %s\n", event.GetName())
+		// eventChn <- e
+		go eventHandle(ctx, conn, event)
+	})
+
+	_, err = conn.SendCommand(ctx, command.Linger{
+		Enabled: true,
+		Duration: 10,
+	})
+	if err != nil {
+		log.Error(err)
 		return
 	}
 
@@ -79,14 +96,66 @@ func handle(ctx context.Context, conn *esl.Connection) {
 			Sync: true,
 		})
 		log.Info("send bridge...")
-		conn.SendCommand(ctx, &call.Hangup{
-			UUID: uniqueID,
-			Cause: "{$originate_disposition}",
-		})
 	}
 
 	select {
 	case <- ctx.Done():
+		log.Info("handle ctx done")
 		return
 	}
+}
+
+func eventHandle(ctx context.Context, conn *esl.Connection, event *esl.Event) {
+
+	name := event.GetName()
+	application := event.GetHeader("Application")
+	log.Infof("got event[%s], application: %s\n", name, application)
+	cmd, err := doEvent(event)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+	if cmd != nil {
+		resp, err := conn.SendCommand(context.TODO(), call.Hangup{
+			UUID:  event.ChannelUUID(),
+			Cause: event.GetVariable("originate_disposition"),
+		})
+		if err != nil {
+			log.Error(err)
+			return
+		}
+		log.Infof("hungup response: %#v\n", resp)
+	}
+
+}
+
+func doEvent(event *esl.Event) (command.Command, error) {
+	name := event.GetName()
+	switch name {
+	case channelExecuteComplete:
+		app := event.GetHeader("Application")
+		if app == "bridge" {
+			return doBridgeComplete(event)
+		}
+	case channelHangupComplete:
+		return doHangupComplete(event)
+	}
+	return nil, nil
+}
+
+func doBridgeComplete(event *esl.Event) (command.Command, error) {
+	uuid := event.ChannelUUID()
+	cause := event.GetVariable("originate_disposition")
+	if cause != "SUCCESS" {
+		return call.Hangup{
+			UUID:  uuid,
+			Cause: cause,
+		}, nil
+	}
+	return nil, nil
+}
+
+func doHangupComplete(event *esl.Event) (command.Command, error) {
+	log.Infof("hangup complete:\nduration: %s\nbillsec: %s", event.GetVariable("duration"), event.GetVariable("billsec"))
+	return nil, nil
 }

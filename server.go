@@ -3,18 +3,18 @@ package esl
 import (
 	"context"
 	"net"
-	"time"
 
-	"github.com/zhifeichen/esl/v2/command"
 	"github.com/zhifeichen/log"
 )
 
 // OutboundHandler connection handler
 type OutboundHandler func(ctx context.Context, conn *Connection)
 
+var listener net.Listener
 // ListenAndServe outbound server
 func ListenAndServe(addr string, handler OutboundHandler) error {
-	listener, err := net.Listen("tcp", addr)
+	var err error
+	listener, err = net.Listen("tcp", addr)
 	if err != nil {
 		log.Error(err)
 		return err
@@ -32,40 +32,39 @@ func ListenAndServe(addr string, handler OutboundHandler) error {
 		go conn.receiveLoop()
 		go conn.eventLoop()
 
-		go conn.dummyLoop()
-		go conn.outboundHandle(handler)
+		handlerCtx, cancel := context.WithCancel(conn.runningContext)
+		go conn.dummyLoop(cancel)
+		go conn.outboundHandle(handlerCtx, handler)
 	}
 	log.Info("outbound server shutting down")
 	return nil
 }
 
-func (c *Connection) outboundHandle(handler OutboundHandler) {
-	// ctx, cancel := context.WithTimeout(c.runningContext, 3 * time.Second)
-	// resp, err := c.SendCommand(ctx, command.Connect{})
-	// cancel()
-	// if err != nil {
-	// 	log.Errorf("Error connecting to %s error %s\n", c.conn.RemoteAddr().String(), err.Error())
-	// 	c.Close()
-	// 	return
-	// }
-
-	handler(c.runningContext, c)
-
-	time.Sleep(25 * time.Millisecond)
-	ctx, cancel := context.WithTimeout(c.runningContext, 3 * time.Second)
-	c.SendCommand(ctx, command.Exit{})
-	cancel()
-	c.ExitAndClose()
+// Shutdown shutdown the outbound server
+func Shutdown() {
+	listener.Close()
 }
 
-func (c *Connection) dummyLoop() {
-	select {
-	case <- c.responseChns[TypeDisconnect]:
-		log.Warnf("Disconnect outbound connection %s\n", c.conn.RemoteAddr().String())
-		c.Close()
-	case <- c.responseChns[TypeAuthRequest]:
-		log.Infof("Ignoring auth request on outbound connectiong %s\n", c.conn.RemoteAddr().String())
-	case <- c.runningContext.Done():
-		return
+func (c *Connection) outboundHandle(ctx context.Context, handler OutboundHandler) {
+	handler(ctx, c)
+}
+
+func (c *Connection) dummyLoop(cancel context.CancelFunc) {
+	for {
+		select {
+		case e := <-c.responseChns[TypeDisconnect]:
+			disposition := e.GetHeader("Content-Disposition")
+			if disposition == "linger" {
+				log.Info("received linger disconnect...")
+				cancel()
+				continue
+			}
+			log.Warnf("Disconnect outbound connection %s\n", c.conn.RemoteAddr().String())
+			c.Close()
+		case <-c.responseChns[TypeAuthRequest]:
+			log.Infof("Ignoring auth request on outbound connectiong %s\n", c.conn.RemoteAddr().String())
+		case <-c.runningContext.Done():
+			return
+		}
 	}
 }
