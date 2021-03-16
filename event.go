@@ -112,18 +112,18 @@ func readJSONEvent(body []byte) (*Event, error) {
 
 		// Copy back in:
 		for k, v := range decoded {
-			switch v.(type) {
+			switch v := v.(type) {
 			case string:
-				event.Headers[textproto.CanonicalMIMEHeaderKey(k)] = append(event.Headers[textproto.CanonicalMIMEHeaderKey(k)], v.(string))
+				event.Headers[textproto.CanonicalMIMEHeaderKey(k)] = append(event.Headers[textproto.CanonicalMIMEHeaderKey(k)], v)
 			case []string:
-				event.Headers[textproto.CanonicalMIMEHeaderKey(k)] = append(event.Headers[textproto.CanonicalMIMEHeaderKey(k)], v.([]string)...)
+				event.Headers[textproto.CanonicalMIMEHeaderKey(k)] = append(event.Headers[textproto.CanonicalMIMEHeaderKey(k)], v...)
 			default:
 				//delete(m.Headers, k)
 				log.Warnf("Removed non-string property (%s)", k)
 			}
 		}
 
-		if v, _ := event.Headers["_body"]; len(v) > 0 && v[0] != "" {
+		if v := event.Headers["_body"]; len(v) > 0 && v[0] != "" {
 			event.Body = []byte(v[0])
 			delete(event.Headers, "_body")
 		} else {

@@ -147,18 +147,18 @@ func (m *Message) Parse() error {
 
 		// Copy back in:
 		for k, v := range decoded {
-			switch v.(type) {
+			switch v := v.(type) {
 			case string:
-				m.Headers[textproto.CanonicalMIMEHeaderKey(k)] = v.(string)
+				m.Headers[textproto.CanonicalMIMEHeaderKey(k)] = v
 			case []string:
-				m.Headers[textproto.CanonicalMIMEHeaderKey(k)] = v.([]string)[0]
+				m.Headers[textproto.CanonicalMIMEHeaderKey(k)] = v[0]
 			default:
 				//delete(m.Headers, k)
 				log.Warnf("Removed non-string property (%s)", k)
 			}
 		}
 
-		if v, _ := m.Headers["_body"]; v != "" {
+		if v := m.Headers["_body"]; v != "" {
 			m.Body = []byte(v)
 			delete(m.Headers, "_body")
 		} else {

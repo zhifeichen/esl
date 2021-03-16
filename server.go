@@ -10,15 +10,23 @@ import (
 // OutboundHandler connection handler
 type OutboundHandler func(ctx context.Context, conn *Connection)
 
-var listener net.Listener
+type outboundServer struct {
+	listener net.Listener
+	ctx      context.Context
+	stop     context.CancelFunc
+}
+
+var server outboundServer
+
 // ListenAndServe outbound server
 func ListenAndServe(addr string, handler OutboundHandler) error {
-	var err error
-	listener, err = net.Listen("tcp", addr)
+	listener, err := net.Listen("tcp", addr)
 	if err != nil {
 		log.Error(err)
 		return err
 	}
+	server.listener = listener
+	server.ctx, server.stop = context.WithCancel(context.Background())
 	log.Infof("Listenting for new ESL connections on %s\n", listener.Addr().String())
 	for {
 		c, err := listener.Accept()
@@ -37,12 +45,14 @@ func ListenAndServe(addr string, handler OutboundHandler) error {
 		go conn.outboundHandle(handlerCtx, handler)
 	}
 	log.Info("outbound server shutting down")
+	server.stop()
 	return nil
 }
 
 // Shutdown shutdown the outbound server
 func Shutdown() {
-	listener.Close()
+	server.listener.Close()
+	<-server.ctx.Done()
 }
 
 func (c *Connection) outboundHandle(ctx context.Context, handler OutboundHandler) {

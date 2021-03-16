@@ -2,6 +2,9 @@ package main
 
 import (
 	"context"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/zhifeichen/esl/v2"
 	"github.com/zhifeichen/esl/v2/command"
@@ -16,7 +19,15 @@ const (
 )
 
 func main() {
-	log.Fatal(esl.ListenAndServe(":8888", handle))
+	go func() {
+		log.Fatal(esl.ListenAndServe(":8888", handle))
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	log.Info("shutdown esl outbound server...")
+	esl.Shutdown()
 }
 
 func handle(ctx context.Context, conn *esl.Connection) {
@@ -37,7 +48,7 @@ func handle(ctx context.Context, conn *esl.Connection) {
 	})
 
 	_, err = conn.SendCommand(ctx, command.Linger{
-		Enabled: true,
+		Enabled:  true,
 		Duration: 10,
 	})
 	if err != nil {
@@ -61,7 +72,7 @@ func handle(ctx context.Context, conn *esl.Connection) {
 
 		log.Infof("caller: %s\ncallee: %s\nchannelId: %s\nsdp: %s\ncallid: %s\n", caller, callee, uniqueID, sdp, callID)
 
-		_, err := conn.SendCommand(ctx, command.Filter{
+		conn.SendCommand(ctx, command.Filter{
 			EventHeader: "Unique-Id",
 			FilterValue: uniqueID,
 		})
@@ -80,7 +91,7 @@ func handle(ctx context.Context, conn *esl.Connection) {
 		}
 
 		calleeContactResp, err := conn.SendCommand(ctx, command.API{
-			Command: "sofia_contact",
+			Command:   "sofia_contact",
 			Arguments: callee,
 		})
 
@@ -90,19 +101,16 @@ func handle(ctx context.Context, conn *esl.Connection) {
 		}
 
 		conn.SendCommand(ctx, &call.Execute{
-			UUID: uniqueID,
+			UUID:    uniqueID,
 			AppName: "bridge",
 			AppArgs: string(calleeContactResp.Body),
-			Sync: true,
+			Sync:    true,
 		})
 		log.Info("send bridge...")
 	}
 
-	select {
-	case <- ctx.Done():
-		log.Info("handle ctx done")
-		return
-	}
+	<-ctx.Done()
+	log.Info("handle ctx done")
 }
 
 func eventHandle(ctx context.Context, conn *esl.Connection, event *esl.Event) {
