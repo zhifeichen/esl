@@ -188,6 +188,7 @@ func (c *Client) APIWithTimeout(cmd string, duration time.Duration) (map[string]
 
 	err := c.SendBgAPIUUID(cmd, uuid)
 	if err != nil {
+		log.Error(err)
 		return nil, "", err
 	}
 
@@ -247,6 +248,7 @@ loop:
 	for {
 		msg, err := c.ReadMessage()
 		if err != nil {
+			log.Error(err)
 			break loop
 		}
 
@@ -313,8 +315,8 @@ func (c *Client) loop(connected chan<- struct{}) {
 
 		err = c.Authenticate()
 		if err != nil {
-			c.Close()
-			panic("auth failue")
+			log.Error(err)
+			continue
 		}
 
 		once.Do(func() {
