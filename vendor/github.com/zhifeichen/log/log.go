@@ -51,7 +51,7 @@ func Init(o Options) {
 		w = io.MultiWriter(o.writers...)
 	}
 	log.SetOutput(w)
-	log.SetFlags(log.Ldate | log.Ltime)
+	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
 }
 
 // Log makes use of log
