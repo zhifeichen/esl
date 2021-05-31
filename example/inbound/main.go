@@ -119,7 +119,7 @@ func main() {
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		client.client.SendCommand(ctx, command.API{Command: cmd, Background: true}, func(e *esl.Event) {
+		resp, err := client.client.SendCommand(ctx, command.API{Command: cmd, Background: true}, func(e *esl.Event) {
 			log.Infof("response: %#v\n", e)
 			log.Infof("event name: %s\n", e.GetHeader("Event-Name"))
 			contentLength := e.GetHeader("Content-Length")
@@ -128,6 +128,12 @@ func main() {
 				log.Infof("body: %s\n", string(e.Body))
 			}
 		})
+		if err != nil {
+			log.Error(err)
+			cancel()
+			continue
+		}
+		log.Debugf("resp: %#v", resp)
 		cancel()
 	}
 	rl.Clean()

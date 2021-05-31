@@ -16,3 +16,5 @@
 
 # log file
 *.log
+/example/outbound/outbound
+/example/inbound/inbound

@@ -57,6 +57,12 @@ func (c *Client) EstablishConnection() error {
 
 	runningCtx, stop := context.WithCancel(context.Background())
 
+	// save orig filter
+	var origFilter *filter
+	if c.Connection.filter != nil {
+		origFilter = c.Connection.filter
+	}
+
 	c.Connection = Connection{
 		runningContext: runningCtx,
 		stop:           stop,
@@ -71,12 +77,16 @@ func (c *Client) EstablishConnection() error {
 			TypeDisconnect:  make(chan *RawResponse),
 		},
 	}
-	filter := &filter{
-		bgapi:  bgFilter{cb: make(map[string]EventHandler)},
-		event:  eventFilter{cb: make(map[string]EventHandler)},
-		header: headerFilter{cb: make([]*headerFilterItem, 0, 5)},
+	if origFilter != nil {
+		c.Connection.filter = origFilter
+	} else {
+		filter := &filter{
+			bgapi:  bgFilter{cb: make(map[string]EventHandler)},
+			event:  eventFilter{cb: make(map[string]EventHandler)},
+			header: headerFilter{cb: make([]*headerFilterItem, 0, 5)},
+		}
+		c.Connection.filter = filter
 	}
-	c.Connection.filter = filter
 
 	log.Debugf("dial to %s %s...\n", c.Proto, c.Addr)
 	conn, err := c.Dial(c.Proto, c.Addr, time.Duration(c.Timeout*int(time.Second)))
@@ -144,6 +154,8 @@ func (c *Client) loop(connected chan<- struct{}) {
 			log.Warnf("connection disconnected\n")
 			continue
 		case <-c.runningContext.Done():
+			log.Debug("run context done")
+			c.chnClosed <- struct{}{}
 			return
 		}
 	}
