@@ -104,29 +104,42 @@ func (c *Connection) close() {
 	c.responseChnMtx.Lock()
 	defer c.responseChnMtx.Unlock()
 
+	log.Info("close")
 	for key, chn := range c.responseChns {
 		close(chn)
 		delete(c.responseChns, key)
+		log.Infof("delete chn %s\n", key)
 	}
 
-	c.conn.Close()
+	log.Info("close conn")
+	if c.conn != nil {
+		c.conn.Close()
+		c.conn = nil
+	}
+	log.Info("closed")
 }
 
 // SendCommand send command to fs
 func (c *Connection) SendCommand(ctx context.Context, cmd command.Command, fn ...EventHandler) (*RawResponse, error) {
+	t1 := time.Now()
 	c.writeLock.Lock()
 	defer c.writeLock.Unlock()
+	esc := time.Since(t1).Milliseconds()
+	if esc > 500 {
+		log.Errorf("esc > 500: %d\n", esc)
+	}
 
-	log.Debugf("send command: %s\n", cmd.BuildMessage())
+	sendString := cmd.BuildMessage()
+	log.Debugf("send command: %s\n", sendString)
 	if c.conn == nil {
-		log.Errorf("send command %s error: Connection closed", cmd.BuildMessage())
+		log.Errorf("send command %s error: Connection closed", sendString)
 		return nil, ErrConnClosed
 	}
 
 	if deadline, ok := ctx.Deadline(); ok {
 		c.conn.SetWriteDeadline(deadline)
 	}
-	_, err := c.conn.Write([]byte(cmd.BuildMessage() + EndOfMessage))
+	_, err := c.conn.Write([]byte(sendString + EndOfMessage))
 	if err != nil {
 		return nil, err
 	}
@@ -169,6 +182,8 @@ func (c *Connection) SendCommand(ctx context.Context, cmd command.Command, fn ..
 		return response, nil
 	case <-ctx.Done():
 		return nil, ctx.Err()
+	case <-c.runningContext.Done():
+		return nil, c.runningContext.Err()
 	}
 }
 
@@ -186,7 +201,13 @@ func (c *Connection) receiveLoop() {
 				response.Headers.Add("Content-Type", chnName)
 				c.responseChnMtx.RLock()
 				defer c.responseChnMtx.RUnlock()
-				c.responseChns[chnName] <- &response
+				// c.responseChns[chnName] <- &response
+				select{
+				case c.responseChns[chnName] <- &response:
+					return
+				case <-c.runningContext.Done():
+					return
+				}
 			}
 			break
 		}

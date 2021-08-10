@@ -127,6 +127,7 @@ func main() {
 			if len(contentLength) > 0 {
 				log.Infof("body: %s\n", string(e.Body))
 			}
+			<-time.After(5 * time.Second)
 		})
 		if err != nil {
 			log.Error(err)

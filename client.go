@@ -25,27 +25,39 @@ import (
 type Client struct {
 	Connection
 
-	Proto       string `json:"freeswitch_protocol"`
-	Addr        string `json:"freeswitch_addr"`
-	Passwd      string `json:"freeswitch_password"`
-	Timeout     int    `json:"freeswitch_connection_timeout"`
+	Proto   string `json:"freeswitch_protocol"`
+	Addr    string `json:"freeswitch_addr"`
+	Passwd  string `json:"freeswitch_password"`
+	Timeout int    `json:"freeswitch_connection_timeout"`
 
-	running     bool
-	chnClosed   chan struct{}
-	eventFormat string
-	events      string
+	running      bool
+	chnClosed    chan struct{}
+	eventFormat  string
+	events       string
+	sendConnCnt  int
+	sendConn     []*Connection
+	sendParamChn chan *sendParam
+}
+
+type sendParam struct {
+	ctx context.Context
+	cmd command.Command
+	fn  []EventHandler
 }
 
 // NewClient - Will initiate new client that will establish connection and attempt to authenticate
 // against connected freeswitch server
-func NewClient(host string, port uint16, passwd string, timeout int) (*Client, error) {
+func NewClient(host string, port uint16, passwd string, timeout, sendConnCnt int) (*Client, error) {
 	client := Client{
-		Proto:     "tcp", // Let me know if you ever need this open up lol
-		Addr:      net.JoinHostPort(host, strconv.Itoa(int(port))),
-		Passwd:    passwd,
-		Timeout:   timeout,
-		running:   false,
-		chnClosed: make(chan struct{}),
+		Proto:        "tcp", // Let me know if you ever need this open up lol
+		Addr:         net.JoinHostPort(host, strconv.Itoa(int(port))),
+		Passwd:       passwd,
+		Timeout:      timeout,
+		running:      false,
+		chnClosed:    make(chan struct{}, 1),
+		sendParamChn: make(chan *sendParam),
+		sendConnCnt:  sendConnCnt,
+		sendConn:     make([]*Connection, sendConnCnt),
 	}
 
 	return &client, nil
@@ -53,7 +65,6 @@ func NewClient(host string, port uint16, passwd string, timeout int) (*Client, e
 
 // EstablishConnection - Will attempt to establish connection against freeswitch and create new SocketConnection
 func (c *Client) EstablishConnection() error {
-
 
 	runningCtx, stop := context.WithCancel(context.Background())
 
@@ -89,7 +100,8 @@ func (c *Client) EstablishConnection() error {
 	}
 
 	log.Debugf("dial to %s %s...\n", c.Proto, c.Addr)
-	conn, err := c.Dial(c.Proto, c.Addr, time.Duration(c.Timeout*int(time.Second)))
+	to := time.Duration(c.Timeout * int(time.Second))
+	conn, err := c.Dial(c.Proto, c.Addr, to)
 	if err != nil {
 		log.Error(err)
 		return err
@@ -98,6 +110,16 @@ func (c *Client) EstablishConnection() error {
 	c.Connection.conn = conn
 	c.Connection.reader = bufio.NewReader(conn)
 	c.Connection.header = textproto.NewReader(c.Connection.reader)
+
+	for i, sc := range c.sendConn {
+		sconn, err := sc.Dial(c.Proto, c.Addr, to)
+		if err != nil {
+			log.Error(err)
+			c.Close()
+			return err
+		}
+		c.sendConn[i] = newConnect(sconn, false)
+	}
 
 	log.Infof("connect to %s success\n", conn.RemoteAddr().String())
 
@@ -116,6 +138,45 @@ func (c *Client) DoAuth(ctx context.Context, auth command.Auth) error {
 	return nil
 }
 
+func (c *Connection) sendLoop(chn <-chan *sendParam) {
+	for cd := range chn {
+		resp, err := c.SendCommand(cd.ctx, cd.cmd, cd.fn...)
+		if err != nil {
+			log.Error(err)
+			continue
+		}
+		if len(cd.fn) > 0 {
+			e := &Event{
+				Headers: make(textproto.MIMEHeader),
+			}
+			for k, v := range resp.Headers {
+				for _, vv := range v {
+					e.Headers.Add(k, vv)
+				}
+			}
+			copy(e.Body, resp.Body)
+			cd.fn[0](e)
+		}
+	}
+}
+
+func (c *Connection) runningLoop(passwd string) {
+	for {
+		select {
+		case <-c.runningContext.Done():
+			c.Close()
+			return
+		case <-c.responseChns[TypeAuthRequest]:
+			auth := command.Auth{Passwd: passwd}
+			c.SendCommand(c.runningContext, auth)
+			// c.EnableEvent(c.runningContext, "BACKGROUND_JOB")
+		case <-c.responseChns[TypeDisconnect]:
+			c.Close()
+			return
+		}
+	}
+}
+
 func (c *Client) loop(connected chan<- struct{}) {
 	var once sync.Once
 	for c.running {
@@ -128,7 +189,7 @@ func (c *Client) loop(connected chan<- struct{}) {
 		go c.receiveLoop()
 		go c.eventLoop()
 
-		<- c.responseChns[TypeAuthRequest]
+		<-c.responseChns[TypeAuthRequest]
 		err = c.DoAuth(c.runningContext, command.Auth{Passwd: c.Passwd})
 		if err != nil {
 			c.Close()
@@ -139,6 +200,13 @@ func (c *Client) loop(connected chan<- struct{}) {
 			connected <- struct{}{}
 		})
 		c.EnableEvent(c.runningContext, c.events)
+		for _, sc := range c.sendConn {
+			go sc.runningLoop(c.Passwd)
+			go sc.receiveLoop()
+			go sc.eventLoop()
+
+			go sc.sendLoop(c.sendParamChn)
+		}
 
 		select {
 		case <-c.responseChns[TypeAuthRequest]:
@@ -175,7 +243,7 @@ func (c *Client) Start(format, events string) error {
 	select {
 	case <-connected:
 		return nil
-	case <-time.After(time.Duration(c.Timeout * 2) * time.Second):
+	case <-time.After(time.Duration(c.Timeout*2) * time.Second):
 		c.running = false
 		// c.Close()
 		return errors.New("connect timeout")
@@ -186,5 +254,18 @@ func (c *Client) Start(format, events string) error {
 func (c *Client) Stop() {
 	c.running = false
 	c.Close()
+	close(c.sendParamChn)
+	log.Info("close done")
 	<-c.chnClosed
+	log.Info("done")
+}
+
+func (c *Client) SendCommand2(ctx context.Context, cmd command.Command, fn ...EventHandler) {
+	cd := sendParam{
+		ctx: ctx,
+		cmd: cmd,
+		fn: make([]EventHandler, 0),
+	}
+	cd.fn = append(cd.fn, fn...)
+	c.sendParamChn <- &cd
 }
