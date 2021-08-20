@@ -118,7 +118,7 @@ func (c *Client) EstablishConnection() error {
 			c.Close()
 			return err
 		}
-		c.sendConn[i] = newConnect(sconn, false)
+		c.sendConn[i] = newConnect(c.runningContext, sconn, false)
 	}
 
 	log.Infof("connect to %s success\n", conn.RemoteAddr().String())
@@ -138,29 +138,57 @@ func (c *Client) DoAuth(ctx context.Context, auth command.Auth) error {
 	return nil
 }
 
-func (c *Connection) sendLoop(chn <-chan *sendParam) {
-	for cd := range chn {
-		resp, err := c.SendCommand(cd.ctx, cd.cmd, cd.fn...)
-		if err != nil {
-			log.Error(err)
-			continue
-		}
-		if len(cd.fn) > 0 {
-			e := &Event{
-				Headers: make(textproto.MIMEHeader),
-			}
-			for k, v := range resp.Headers {
-				for _, vv := range v {
-					e.Headers.Add(k, vv)
-				}
-			}
-			copy(e.Body, resp.Body)
-			cd.fn[0](e)
-		}
-	}
-}
+// func (c *Connection) sendLoop(chn <-chan *sendParam) {
+// 	// select {
+// 	// case <-c.runningContext.Done():
+// 	// 	c.Close()
+// 	// 	return
+// 	// case <-c.responseChns[TypeAuthRequest]:
+// 	// 	auth := command.Auth{Passwd: passwd}
+// 	// 	c.SendCommand(c.runningContext, auth)
+// 	// 	c.EnableEvent(c.runningContext, "BACKGROUND_JOB")
+// 	// case <-c.responseChns[TypeDisconnect]:
+// 	// 	c.Close()
+// 	// 	return
+// 	// }
+// 	for cd := range chn {
+// 		log.Infof("%#v\n", cd)
+// 		resp, err := c.SendCommand(cd.ctx, cd.cmd, cd.fn...)
+// 		if err != nil {
+// 			log.Error(err)
+// 			continue
+// 		}
+// 		log.Info(resp)
+// 		if bgCmd, ok := cd.cmd.(command.API); !ok || !bgCmd.Background {
+// 			if len(cd.fn) > 0 {
+// 				e := &Event{
+// 					Headers: make(textproto.MIMEHeader),
+// 				}
+// 				for k, v := range resp.Headers {
+// 					for _, vv := range v {
+// 						e.Headers.Add(k, vv)
+// 					}
+// 				}
+// 				copy(e.Body, resp.Body)
+// 				cd.fn[0](e)
+// 			}
+// 		}
+// 	}
+// }
 
-func (c *Connection) runningLoop(passwd string) {
+func (c *Connection) runningLoop(passwd string, chn <-chan *sendParam) {
+	select {
+	case <-c.runningContext.Done():
+		c.Close()
+		return
+	case <-c.responseChns[TypeAuthRequest]:
+		auth := command.Auth{Passwd: passwd}
+		c.SendCommand(c.runningContext, auth)
+		c.EnableEvent(c.runningContext, "BACKGROUND_JOB")
+	case <-c.responseChns[TypeDisconnect]:
+		c.Close()
+		return
+	}
 	for {
 		select {
 		case <-c.runningContext.Done():
@@ -173,6 +201,30 @@ func (c *Connection) runningLoop(passwd string) {
 		case <-c.responseChns[TypeDisconnect]:
 			c.Close()
 			return
+		case cd, ok := <-chn:
+			if !ok {
+				continue
+			}
+			resp, err := c.SendCommand(cd.ctx, cd.cmd, cd.fn...)
+			if err != nil {
+				log.Error(err)
+				continue
+			}
+			log.Info(resp)
+			if bgCmd, ok := cd.cmd.(command.API); !ok || !bgCmd.Background {
+				if len(cd.fn) > 0 {
+					e := &Event{
+						Headers: make(textproto.MIMEHeader),
+					}
+					for k, v := range resp.Headers {
+						for _, vv := range v {
+							e.Headers.Add(k, vv)
+						}
+					}
+					copy(e.Body, resp.Body)
+					cd.fn[0](e)
+				}
+			}
 		}
 	}
 }
@@ -201,11 +253,11 @@ func (c *Client) loop(connected chan<- struct{}) {
 		})
 		c.EnableEvent(c.runningContext, c.events)
 		for _, sc := range c.sendConn {
-			go sc.runningLoop(c.Passwd)
+			go sc.runningLoop(c.Passwd, c.sendParamChn)
 			go sc.receiveLoop()
 			go sc.eventLoop()
 
-			go sc.sendLoop(c.sendParamChn)
+			// go sc.sendLoop(c.sendParamChn)
 		}
 
 		select {
@@ -264,7 +316,7 @@ func (c *Client) SendCommand2(ctx context.Context, cmd command.Command, fn ...Ev
 	cd := sendParam{
 		ctx: ctx,
 		cmd: cmd,
-		fn: make([]EventHandler, 0),
+		fn:  make([]EventHandler, 0),
 	}
 	cd.fn = append(cd.fn, fn...)
 	c.sendParamChn <- &cd

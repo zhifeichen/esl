@@ -42,11 +42,11 @@ func (c *Connection) Dial(network string, addr string, timeout time.Duration) (n
 	return net.DialTimeout(network, addr, timeout)
 }
 
-func newConnect(c net.Conn, outbound bool) *Connection {
+func newConnect(ctx context.Context, c net.Conn, outbound bool) *Connection {
 	reader := bufio.NewReader(c)
 	header := textproto.NewReader(reader)
 
-	runningCtx, stop := context.WithCancel(context.Background())
+	runningCtx, stop := context.WithCancel(ctx)
 
 	instance := &Connection{
 		conn:           c,

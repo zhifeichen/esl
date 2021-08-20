@@ -219,7 +219,7 @@ func TestConnection_SendCommand2(t *testing.T) {
 	cmd.Headers.Add("profile", "internal")
 	var tt, max, cnt int64 = 0, 0, 0
 	wg := sync.WaitGroup{}
-	wg.Add(testCnt*rCnt)
+	wg.Add(testCnt * rCnt)
 	for i := 0; i < testCnt*rCnt; i++ {
 		t2 := time.Now()
 		_, err := client.SendCommand(context.Background(), &cmd)
@@ -303,6 +303,59 @@ func TestConnection_SendCommand3(t *testing.T) {
 	}
 	wg.Wait()
 	t.Errorf("tt: %d; evg esc: %d; max: %d, cnt: %d\n", tt, tt/int64(cnt), max, cnt)
+}
+
+func TestConnection_SendCommand4(t *testing.T) {
+	t1 := time.Now()
+	defer func() {
+		esc := time.Since(t1).Milliseconds()
+		t.Errorf("escap %d ms\n", esc)
+	}()
+
+	log.Init(log.NewOptions(
+		log.Level("error"),
+		// log.Writers(rl.Stdout()),
+	))
+	host := "192.168.135.134"
+	// host := "172.21.24.117"
+	// host := "172.21.24.80"
+	port := uint16(18021)
+	// port := uint16(8021)
+	auth := "ClueCon"
+	client, err := NewClient(host, port, auth, 3, 1)
+	if err != nil {
+		t.Error(err)
+	}
+	err = client.Start("plain", "BACKGROUND_JOB")
+	if err != nil {
+		t.Error(err)
+	}
+
+	wg := sync.WaitGroup{}
+	wg.Add(2)
+	cmd := command.SendEvent{
+		Name:    "SEND_MESSAGE",
+		Headers: make(textproto.MIMEHeader),
+		Body:    "test",
+	}
+	cmd.Headers.Add("User", "19900001111202104fu")
+	cmd.Headers.Add("Host", host)
+	cmd.Headers.Add("profile", "internal")
+	client.SendCommand2(context.Background(), &cmd, func(e *Event) {
+		t.Errorf("%#v\n", e)
+		wg.Done()
+	})
+
+	cmd2 := command.API{
+		Command:    "status",
+		Arguments:  "",
+		Background: true,
+	}
+	client.SendCommand2(context.Background(), cmd2, func(e *Event) {
+		t.Errorf("%#v\n", e)
+		wg.Done()
+	})
+	wg.Wait()
 }
 
 func Benchmark_SendCommand(b *testing.B) {

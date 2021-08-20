@@ -29,7 +29,8 @@ type recordParam struct {
 
 var (
 	// events = []string{"BACKGROUND_JOB", "CHANNEL_CALLSTATE", "CHANNEL_CREATE", "CUSTOM", "conference::maintenance"}
-	events = []string{"BACKGROUND_JOB", "CUSTOM", "conference::maintenance"}
+	// events = []string{"BACKGROUND_JOB", "CUSTOM", "conference::maintenance"}
+	events = []string{"CUSTOM", "conference::maintenance"}
 	// events = []string{"BACKGROUND_JOB", "CHANNEL_CALLSTATE", "CHANNEL_CREATE", "CHANNEL_HANGUP_COMPLETE", "CDR", "CUSTOM", "conference::maintenance", "sofia::register", "sofia::unregister"}
 	// filters = []struct{h, v string; cb esl.headerFilterCallback}{
 	// 	{"Answer-State", "ringing", nil},
@@ -60,7 +61,7 @@ var (
 )
 
 func (c *eslclient) start() error {
-	client, err := esl.NewClient(c.host, c.port, c.auth, 3, 32)
+	client, err := esl.NewClient(c.host, c.port, c.auth, 3, 1)
 	if err != nil {
 		log.Error(err)
 		return err

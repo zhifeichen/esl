@@ -35,7 +35,7 @@ func ListenAndServe(addr string, handler OutboundHandler) error {
 			break
 		}
 		log.Infof("New outbound connection from %s\n", c.RemoteAddr().String())
-		conn := newConnect(c, true)
+		conn := newConnect(server.ctx, c, true)
 
 		go conn.receiveLoop()
 		go conn.eventLoop()
