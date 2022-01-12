@@ -10,7 +10,7 @@ import (
 // EnableEvent subscribe event format and type
 func (c *Connection) EnableEvent(ctx context.Context, events ...string) error {
 	var err error
-	if c.outbound {
+	if c.outbound && len(events) == 0 {
 		_, err = c.SendCommand(ctx, command.MyEvents{Format: "plain"})
 	} else {
 		_, err = c.SendCommand(ctx, command.Event{Format: "plain", Listen: events})

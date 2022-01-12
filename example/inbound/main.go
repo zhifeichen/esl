@@ -18,7 +18,7 @@ var (
 	fshost   = flag.String("fshost", "192.168.135.134", "Freeswitch hostname. Default: localhost")
 	fsport   = flag.Uint("fsport", 8021, "Freeswitch port. Default: 8021")
 	password = flag.String("pass", "ClueCon", "Freeswitch password. Default: ClueCon")
-	timeout  = flag.Int("timeout", 10, "Freeswitch conneciton timeout in seconds. Default: 10")
+	// timeout  = flag.Int("timeout", 10, "Freeswitch conneciton timeout in seconds. Default: 10")
 )
 
 // Small client that will first make sure all events are returned as JSON and second, will originate
@@ -118,7 +118,8 @@ func main() {
 			continue
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		// ctx, _ := context.WithTimeout(context.Background(), 2*time.Second)
+		ctx := context.Background()
 		// resp, err := client.client.SendCommand(ctx, command.API{Command: cmd, Background: true}, func(e *esl.Event) {
 		// 	log.Infof("response: %#v\n", e)
 		// 	log.Infof("event name: %s\n", e.GetHeader("Event-Name"))
@@ -145,8 +146,8 @@ func main() {
 				log.Infof("body: %s\n", string(e.Body))
 			}
 		})
-		<-time.After(500 * time.Millisecond)
-		cancel()
+		// <-time.After(500 * time.Millisecond)
+		// cancel()
 	}
 	rl.Clean()
 }

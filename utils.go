@@ -6,6 +6,8 @@
 
 package esl
 
+import "github.com/zhifeichen/log"
+
 // StringInSlice - Will check if string in list. This is equivalent to python if x in []
 // @TODO - What the fuck Nevio...
 func StringInSlice(str string, list []string) bool {
@@ -15,4 +17,15 @@ func StringInSlice(str string, list []string) bool {
 		}
 	}
 	return false
+}
+
+func Init() {
+	logger.Discard()
+}
+
+func EnableLog(fileName, level string) {
+	logger = log.New(log.NewOptions(
+		log.Filename(fileName),
+		log.Level(level),
+	))
 }

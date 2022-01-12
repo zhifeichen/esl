@@ -8,6 +8,8 @@ github.com/chzyer/test v0.0.0-20180213035817-a1ea475d72b1 h1:q763qf9huN11kDQavWs
 github.com/chzyer/test v0.0.0-20180213035817-a1ea475d72b1/go.mod h1:Q3SI9o4m/ZMnBNeIyt5eFwwo7qiLfzFZmjNmxjkiQlU=
 github.com/zhifeichen/log v0.0.0-20210528063640-73bb1daad905 h1:jSSFM382esONAkmoj65W3yAgi5qBQgzsKIqOt3YjVRc=
 github.com/zhifeichen/log v0.0.0-20210528063640-73bb1daad905/go.mod h1:/IAlXSsM6zVJvk2sKTq183L1JamTtbmsmFLT7fSSfSw=
+github.com/zhifeichen/log v0.0.0-20220112032342-c8c79cf34af4 h1:WHK+7KpXJ4mg6WopQ7npv9KUY1YdbqjKSckV4/qddkQ=
+github.com/zhifeichen/log v0.0.0-20220112032342-c8c79cf34af4/go.mod h1:/IAlXSsM6zVJvk2sKTq183L1JamTtbmsmFLT7fSSfSw=
 golang.org/x/sys v0.0.0-20210303074136-134d130e1a04 h1:cEhElsAv9LUt9ZUUocxzWe05oFLVd+AA2nstydTeI8g=
 golang.org/x/sys v0.0.0-20210303074136-134d130e1a04/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405 h1:yhCVgyC4o1eVCa2tZl7eS0r+SDo693bJlVdllGtEeKM=

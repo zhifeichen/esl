@@ -19,6 +19,9 @@ const (
 )
 
 func main() {
+	log.Init(log.NewOptions(
+		log.Level("trace"),
+	))
 	go func() {
 		log.Fatal(esl.ListenAndServe(":8888", handle))
 	}()
@@ -76,6 +79,10 @@ func handle(ctx context.Context, conn *esl.Connection) {
 			EventHeader: "Unique-Id",
 			FilterValue: uniqueID,
 		})
+		conn.SendCommand(ctx, command.Filter{
+			EventHeader: "Event-Name",
+			FilterValue: "BACKGROUND_JOB",
+		})
 
 		// set call-timeout
 		err = conn.Set(ctx, "call_timeout", "30", uniqueID)
@@ -89,6 +96,21 @@ func handle(ctx context.Context, conn *esl.Connection) {
 			log.Error(err)
 			return
 		}
+
+		temp, err := conn.SendCommand(ctx, command.API{
+			Command:   "sofia_contact",
+			Arguments: caller,
+			Background: true,
+		}, func(e *esl.Event){
+			log.Debugf("background job: %s", e.GetName())
+		})
+
+		if err != nil {
+			log.Error(err)
+			return
+		}
+		log.Debug(temp);
+
 
 		calleeContactResp, err := conn.SendCommand(ctx, command.API{
 			Command:   "sofia_contact",

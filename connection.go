@@ -18,7 +18,6 @@ import (
 	"time"
 
 	"github.com/zhifeichen/esl/v2/command"
-	"github.com/zhifeichen/log"
 )
 
 // Connection Main connection against ESL - Gotta add more description here
@@ -104,19 +103,19 @@ func (c *Connection) close() {
 	c.responseChnMtx.Lock()
 	defer c.responseChnMtx.Unlock()
 
-	log.Info("close")
+	logger.Info("close")
 	for key, chn := range c.responseChns {
 		close(chn)
 		delete(c.responseChns, key)
-		log.Infof("delete chn %s\n", key)
+		logger.Infof("delete chn %s\n", key)
 	}
 
-	log.Info("close conn")
+	logger.Info("close conn")
 	if c.conn != nil {
 		c.conn.Close()
 		c.conn = nil
 	}
-	log.Info("closed")
+	logger.Info("closed")
 }
 
 // SendCommand send command to fs
@@ -126,13 +125,13 @@ func (c *Connection) SendCommand(ctx context.Context, cmd command.Command, fn ..
 	defer c.writeLock.Unlock()
 	esc := time.Since(t1).Milliseconds()
 	if esc > 500 {
-		log.Errorf("esc > 500: %d\n", esc)
+		logger.Errorf("esc > 500: %d\n", esc)
 	}
 
 	sendString := cmd.BuildMessage()
-	log.Debugf("send command: %s\n", sendString)
+	logger.Debugf("send command: %s\n", sendString)
 	if c.conn == nil {
-		log.Errorf("send command %s error: Connection closed", sendString)
+		logger.Errorf("send command %s error: Connection closed", sendString)
 		return nil, ErrConnClosed
 	}
 
@@ -191,9 +190,9 @@ func (c *Connection) receiveLoop() {
 	for c.runningContext.Err() == nil {
 		err := c.doReceive()
 		if err != nil {
-			log.Errorf("Error receiving message: %s; %#v\n", err.Error(), err)
+			logger.Errorf("Error receiving message: %s; %#v\n", err.Error(), err)
 			if strings.Contains(err.Error(), "EOF") {
-				log.Error("connection eof")
+				logger.Error("connection eof")
 				response := RawResponse{
 					Headers: make(textproto.MIMEHeader),
 				}
@@ -219,7 +218,7 @@ func (c *Connection) doReceive() error {
 	if err != nil {
 		return err
 	}
-	log.Debugf("recv response: %#v\n", response)
+	logger.Debugf("recv response: %#v\n", response)
 
 	c.responseChnMtx.RLock()
 	defer c.responseChnMtx.RUnlock()
@@ -241,8 +240,8 @@ func (c *Connection) doReceive() error {
 			// Parent connection context has stopped we most likely shutdown in the middle of waiting for a handler to handle the message
 			return c.runningContext.Err()
 		case <-ctx.Done():
-			// Do not return an error since this is not fatal but log since it could be a indication of problems
-			log.Warnf("No one to handle response\nIs the connection overloaded or stopping?\n%v\n\n", response)
+			// Do not return an error since this is not fatal but logger since it could be a indication of problems
+			logger.Warnf("No one to handle response\nIs the connection overloaded or stopping?\n%v\n\n", response)
 		}
 	} else {
 		return errors.New("no response channel for Content-Type: " + response.GetHeader("Content-Type"))
@@ -284,7 +283,7 @@ func (c *Connection) eventLoop() {
 		c.responseChnMtx.RUnlock()
 
 		if err != nil {
-			log.Errorf("Error parsing event\n%s\n", err.Error())
+			logger.Errorf("Error parsing event\n%s\n", err.Error())
 			continue
 		}
 

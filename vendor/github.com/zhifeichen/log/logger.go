@@ -13,12 +13,13 @@ import (
 
 // Logger the logger struct
 type Logger struct {
-	logger *log.Logger
+	logger    *log.Logger
+	logLevel  level
+	oldWriter io.Writer
 }
 
 // New init log
 func New(o Options) *Logger {
-	logLevel = o.level
 	var w io.Writer = &lumberjack.Logger{
 		Filename:   o.filename,
 		MaxSize:    o.maxSize, // MB
@@ -30,9 +31,22 @@ func New(o Options) *Logger {
 		w = io.MultiWriter(o.writers...)
 	}
 
-	l := log.New(w, "", log.Ldate | log.Ltime)
+	l := log.New(w, "", log.Ldate|log.Ltime)
 	return &Logger{
-		logger: l,
+		logger:   l,
+		logLevel: o.level,
+	}
+}
+
+func (logger *Logger) Discard() {
+	logger.oldWriter = logger.logger.Writer()
+	logger.logger.SetOutput(io.Discard)
+}
+
+func (logger *Logger) ResumeWriter() {
+	if logger.oldWriter != nil {
+		logger.logger.SetOutput(logger.oldWriter)
+		logger.oldWriter = nil
 	}
 }
 
@@ -52,7 +66,7 @@ func (logger *Logger) Logf(file string, line int, l level, format string, v ...i
 
 // WithLevel logs with the level specified
 func (logger *Logger) WithLevel(file string, line int, l level, v ...interface{}) {
-	if l > logLevel {
+	if l > logger.logLevel {
 		return
 	}
 	logger.Log(file, line, l, v...)
@@ -60,7 +74,7 @@ func (logger *Logger) WithLevel(file string, line int, l level, v ...interface{}
 
 // WithLevelf logs with the level specified
 func (logger *Logger) WithLevelf(file string, line int, l level, format string, v ...interface{}) {
-	if l > logLevel {
+	if l > logger.logLevel {
 		return
 	}
 	logger.Logf(file, line, l, format, v...)
@@ -144,4 +158,3 @@ func (logger *Logger) Fatalf(format string, v ...interface{}) {
 func (logger *Logger) Writer() io.Writer {
 	return logger.logger.Writer()
 }
-

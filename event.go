@@ -11,8 +11,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-
-	"github.com/zhifeichen/log"
 )
 
 // EventHandler event handler callback
@@ -119,7 +117,7 @@ func readJSONEvent(body []byte) (*Event, error) {
 				event.Headers[textproto.CanonicalMIMEHeaderKey(k)] = append(event.Headers[textproto.CanonicalMIMEHeaderKey(k)], v...)
 			default:
 				//delete(m.Headers, k)
-				log.Warnf("Removed non-string property (%s)", k)
+				logger.Warnf("Removed non-string property (%s)", k)
 			}
 		}
 

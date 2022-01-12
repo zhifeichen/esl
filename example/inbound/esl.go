@@ -11,26 +11,13 @@ type eslclient struct {
 	host    string
 	port    uint16
 	auth    string
-	running bool
 	client  *esl.Client
-}
-
-// param type struct
-type recordParam struct {
-	AccessCode string `json:"accessCode"`
-	Subject    string `json:"subject"`
-	Type1      int    `json:"type1"`
-	Order1     string `json:"order1"`
-	Type2      int    `json:"type2"`
-	Order2     string `json:"order2"`
-	Type3      int    `json:"type3"`
-	Order3     string `json:"order3"`
 }
 
 var (
 	// events = []string{"BACKGROUND_JOB", "CHANNEL_CALLSTATE", "CHANNEL_CREATE", "CUSTOM", "conference::maintenance"}
 	// events = []string{"BACKGROUND_JOB", "CUSTOM", "conference::maintenance"}
-	events = []string{"CUSTOM", "conference::maintenance"}
+	events = []string{"BACKGROUND_JOB", "CUSTOM", "conference::maintenance"}
 	// events = []string{"BACKGROUND_JOB", "CHANNEL_CALLSTATE", "CHANNEL_CREATE", "CHANNEL_HANGUP_COMPLETE", "CDR", "CUSTOM", "conference::maintenance", "sofia::register", "sofia::unregister"}
 	// filters = []struct{h, v string; cb esl.headerFilterCallback}{
 	// 	{"Answer-State", "ringing", nil},
@@ -61,7 +48,7 @@ var (
 )
 
 func (c *eslclient) start() error {
-	client, err := esl.NewClient(c.host, c.port, c.auth, 3, 1)
+	client, err := esl.NewClient(c.host, c.port, c.auth, 3, 0)
 	if err != nil {
 		log.Error(err)
 		return err

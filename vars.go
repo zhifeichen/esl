@@ -6,6 +6,8 @@
 
 package esl
 
+import "github.com/zhifeichen/log"
+
 var (
 
 	// ReadBufferSize Size of buffer when we read from connection.
@@ -14,4 +16,7 @@ var (
 
 	// AvailableMessageTypes Freeswitch events that we can handle (have logic for it)
 	AvailableMessageTypes = []string{"auth/request", "text/disconnect-notice", "text/event-json", "text/event-plain", "api/response", "command/reply"}
+
+	// logger
+	logger = log.New(log.NewOptions())
 )

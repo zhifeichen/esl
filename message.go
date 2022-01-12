@@ -17,8 +17,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-
-	"github.com/zhifeichen/log"
 )
 
 // Message - Freeswitch Message that is received by GoESL. Message struct is here to help with parsing message
@@ -66,12 +64,12 @@ func (m *Message) Parse() error {
 	cmr, err := m.tr.ReadMIMEHeader()
 
 	if err != nil && err.Error() != "EOF" {
-		// log.Error(ECouldNotReadMIMEHeaders, err)
+		// logger.Error(ECouldNotReadMIMEHeaders, err)
 		return newEslError("57", ErrCouldNotReadMIMEHeaders, err)
 	}
 
 	if cmr.Get("Content-Type") == "" {
-		log.Debug("Not accepting message because of empty content type. Just whatever with it ...")
+		logger.Debug("Not accepting message because of empty content type. Just whatever with it ...")
 		return fmt.Errorf("Parse EOF")
 	}
 
@@ -81,21 +79,21 @@ func (m *Message) Parse() error {
 		l, err := strconv.Atoi(lv)
 
 		if err != nil {
-			// log.Error(EInvalidContentLength, err)
+			// logger.Error(EInvalidContentLength, err)
 			return newEslError("72", ErrInvalidContentLength, err)
 		}
 
 		m.Body = make([]byte, l)
 
 		if r, err := io.ReadFull(m.r, m.Body); err != nil {
-			// log.Error(ECouldNotReadyBody, err)
+			// logger.Error(ECouldNotReadyBody, err)
 			return newEslError(fmt.Sprintf("%d", r), ErrCouldNotReadBody, err)
 		}
 	}
 
 	msgType := cmr.Get("Content-Type")
 
-	// log.Debugf("Got message content (type: %s). Searching if we can handle it ...", msgType)
+	// logger.Debugf("Got message content (type: %s). Searching if we can handle it ...", msgType)
 
 	if !StringInSlice(msgType, AvailableMessageTypes) {
 		msg := fmt.Sprintf("got: %s, supported types are: %s", msgType, AvailableMessageTypes)
@@ -113,7 +111,7 @@ func (m *Message) Parse() error {
 				m.Headers[k], err = url.QueryUnescape(v[0])
 
 				if err != nil {
-					log.Error(ErrCouldNotDecode, err)
+					logger.Error(ErrCouldNotDecode, err)
 					continue
 				}
 			}
@@ -123,7 +121,7 @@ func (m *Message) Parse() error {
 	switch msgType {
 	case "text/disconnect-notice":
 		for k, v := range cmr {
-			log.Debugf("Message (header: %s) -> (value: %v)", k, v)
+			logger.Debugf("Message (header: %s) -> (value: %v)", k, v)
 		}
 	case "command/reply":
 		reply := cmr.Get("Reply-Text")
@@ -154,7 +152,7 @@ func (m *Message) Parse() error {
 				m.Headers[textproto.CanonicalMIMEHeaderKey(k)] = v[0]
 			default:
 				//delete(m.Headers, k)
-				log.Warnf("Removed non-string property (%s)", k)
+				logger.Warnf("Removed non-string property (%s)", k)
 			}
 		}
 
@@ -182,7 +180,7 @@ func (m *Message) Parse() error {
 					m.Headers[k], err = url.QueryUnescape(v[0])
 
 					if err != nil {
-						log.Error(ErrCouldNotDecode, err)
+						logger.Error(ErrCouldNotDecode, err)
 						continue
 					}
 				}
@@ -193,14 +191,14 @@ func (m *Message) Parse() error {
 			length, err := strconv.Atoi(vl)
 
 			if err != nil {
-				// log.Error(EInvalidContentLength, err)
+				// logger.Error(EInvalidContentLength, err)
 				return newEslError("", ErrInvalidContentLength, err)
 			}
 
 			m.Body = make([]byte, length)
 
 			if _, err = io.ReadFull(r, m.Body); err != nil {
-				// log.Error(ECouldNotReadyBody, err)
+				// logger.Error(ECouldNotReadyBody, err)
 				return newEslError("", ErrCouldNotReadBody, err)
 			}
 		} else {

@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"github.com/zhifeichen/esl/v2/command"
-	"github.com/zhifeichen/log"
 )
 
 // Client - In case you need to do inbound dialing against freeswitch server in order to originate call or see
@@ -99,11 +98,11 @@ func (c *Client) EstablishConnection() error {
 		c.Connection.filter = filter
 	}
 
-	log.Debugf("dial to %s %s...\n", c.Proto, c.Addr)
+	logger.Debugf("dial to %s %s...\n", c.Proto, c.Addr)
 	to := time.Duration(c.Timeout * int(time.Second))
 	conn, err := c.Dial(c.Proto, c.Addr, to)
 	if err != nil {
-		log.Error(err)
+		logger.Error(err)
 		return err
 	}
 
@@ -114,14 +113,14 @@ func (c *Client) EstablishConnection() error {
 	for i, sc := range c.sendConn {
 		sconn, err := sc.Dial(c.Proto, c.Addr, to)
 		if err != nil {
-			log.Error(err)
+			logger.Error(err)
 			c.Close()
 			return err
 		}
 		c.sendConn[i] = newConnect(c.runningContext, sconn, false)
 	}
 
-	log.Infof("connect to %s success\n", conn.RemoteAddr().String())
+	logger.Infof("connect to %s success\n", conn.RemoteAddr().String())
 
 	return nil
 }
@@ -152,13 +151,13 @@ func (c *Client) DoAuth(ctx context.Context, auth command.Auth) error {
 // 	// 	return
 // 	// }
 // 	for cd := range chn {
-// 		log.Infof("%#v\n", cd)
+// 		logger.Infof("%#v\n", cd)
 // 		resp, err := c.SendCommand(cd.ctx, cd.cmd, cd.fn...)
 // 		if err != nil {
-// 			log.Error(err)
+// 			logger.Error(err)
 // 			continue
 // 		}
-// 		log.Info(resp)
+// 		logger.Info(resp)
 // 		if bgCmd, ok := cd.cmd.(command.API); !ok || !bgCmd.Background {
 // 			if len(cd.fn) > 0 {
 // 				e := &Event{
@@ -207,10 +206,10 @@ func (c *Connection) runningLoop(passwd string, chn <-chan *sendParam) {
 			}
 			resp, err := c.SendCommand(cd.ctx, cd.cmd, cd.fn...)
 			if err != nil {
-				log.Error(err)
+				logger.Error(err)
 				continue
 			}
-			log.Info(resp)
+			logger.Info(resp)
 			if bgCmd, ok := cd.cmd.(command.API); !ok || !bgCmd.Background {
 				if len(cd.fn) > 0 {
 					e := &Event{
@@ -264,17 +263,17 @@ func (c *Client) loop(connected chan<- struct{}) {
 		case <-c.responseChns[TypeAuthRequest]:
 			err := c.DoAuth(c.runningContext, command.Auth{Passwd: c.Passwd})
 			if err != nil {
-				log.Errorf("authenticate %s error: %s\n", c.conn.RemoteAddr(), err.Error())
+				logger.Errorf("authenticate %s error: %s\n", c.conn.RemoteAddr(), err.Error())
 				c.ExitAndClose()
 				return
 			}
-			log.Infof("successfully authenticated %s\n", c.conn.RemoteAddr())
+			logger.Infof("successfully authenticated %s\n", c.conn.RemoteAddr())
 		case <-c.responseChns[TypeDisconnect]:
 			c.Close()
-			log.Warnf("connection disconnected\n")
+			logger.Warnf("connection disconnected\n")
 			continue
 		case <-c.runningContext.Done():
-			log.Debug("run context done")
+			logger.Debug("run context done")
 			c.chnClosed <- struct{}{}
 			return
 		}
@@ -307,12 +306,16 @@ func (c *Client) Stop() {
 	c.running = false
 	c.Close()
 	close(c.sendParamChn)
-	log.Info("close done")
+	logger.Info("close done")
 	<-c.chnClosed
-	log.Info("done")
+	logger.Info("done")
 }
 
 func (c *Client) SendCommand2(ctx context.Context, cmd command.Command, fn ...EventHandler) {
+	if c.sendConnCnt == 0 {
+		c.SendCommand(ctx, cmd, fn...)
+		return
+	}
 	cd := sendParam{
 		ctx: ctx,
 		cmd: cmd,
