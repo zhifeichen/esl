@@ -3,6 +3,7 @@ package log
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -40,7 +41,7 @@ func New(o Options) *Logger {
 
 func (logger *Logger) Discard() {
 	logger.oldWriter = logger.logger.Writer()
-	logger.logger.SetOutput(io.Discard)
+	logger.logger.SetOutput(ioutil.Discard)
 }
 
 func (logger *Logger) ResumeWriter() {
