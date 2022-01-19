@@ -263,7 +263,11 @@ func (c *Client) loop(connected chan<- struct{}) {
 		case <-c.responseChns[TypeAuthRequest]:
 			err := c.DoAuth(c.runningContext, command.Auth{Passwd: c.Passwd})
 			if err != nil {
-				logger.Errorf("authenticate %s error: %s\n", c.conn.RemoteAddr(), err.Error())
+				addr := "nil net addr"
+				if c.conn != nil {
+					addr = c.conn.RemoteAddr().String()
+				}
+				logger.Errorf("authenticate %s error: %s\n", addr, err.Error())
 				c.ExitAndClose()
 				return
 			}
@@ -304,6 +308,7 @@ func (c *Client) Start(format, events string) error {
 // Stop stop process loop
 func (c *Client) Stop() {
 	c.running = false
+	c.stop()
 	c.Close()
 	close(c.sendParamChn)
 	logger.Info("close done")
