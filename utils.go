@@ -19,7 +19,7 @@ func StringInSlice(str string, list []string) bool {
 	return false
 }
 
-func Init() {
+func init() {
 	logger.Discard()
 }
 
