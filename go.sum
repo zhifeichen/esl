@@ -6,14 +6,10 @@ github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e h1:fY5BOSpyZCqRo5O
 github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e/go.mod h1:nSuG5e5PlCu98SY8svDHJxuZscDgtXS6KTTbou5AhLI=
 github.com/chzyer/test v0.0.0-20180213035817-a1ea475d72b1 h1:q763qf9huN11kDQavWsoZXJNW3xEE4JJyHa5Q25/sd8=
 github.com/chzyer/test v0.0.0-20180213035817-a1ea475d72b1/go.mod h1:Q3SI9o4m/ZMnBNeIyt5eFwwo7qiLfzFZmjNmxjkiQlU=
-github.com/zhifeichen/log v0.0.0-20210528063640-73bb1daad905 h1:jSSFM382esONAkmoj65W3yAgi5qBQgzsKIqOt3YjVRc=
-github.com/zhifeichen/log v0.0.0-20210528063640-73bb1daad905/go.mod h1:/IAlXSsM6zVJvk2sKTq183L1JamTtbmsmFLT7fSSfSw=
-github.com/zhifeichen/log v0.0.0-20220112032342-c8c79cf34af4 h1:WHK+7KpXJ4mg6WopQ7npv9KUY1YdbqjKSckV4/qddkQ=
-github.com/zhifeichen/log v0.0.0-20220112032342-c8c79cf34af4/go.mod h1:/IAlXSsM6zVJvk2sKTq183L1JamTtbmsmFLT7fSSfSw=
 github.com/zhifeichen/log v0.0.0-20220113031847-1cc88157a38f h1:nCY0Rh9+N3EugT9w3fWN8gLOJ3IPqBtK2ynC6JlZ4fI=
 github.com/zhifeichen/log v0.0.0-20220113031847-1cc88157a38f/go.mod h1:/IAlXSsM6zVJvk2sKTq183L1JamTtbmsmFLT7fSSfSw=
-golang.org/x/sys v0.0.0-20210303074136-134d130e1a04 h1:cEhElsAv9LUt9ZUUocxzWe05oFLVd+AA2nstydTeI8g=
-golang.org/x/sys v0.0.0-20210303074136-134d130e1a04/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+golang.org/x/sys v0.1.0 h1:kunALQeHf1/185U1i0GOB/fy1IPRDDpuoOOqRReG57U=
+golang.org/x/sys v0.1.0/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405 h1:yhCVgyC4o1eVCa2tZl7eS0r+SDo693bJlVdllGtEeKM=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
 gopkg.in/natefinch/lumberjack.v2 v2.0.0 h1:1Lc07Kr7qY4U2YPouBjpCLxpiyxIVoxqXgkXLknAOE8=
