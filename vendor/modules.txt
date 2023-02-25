@@ -10,9 +10,8 @@ github.com/chzyer/readline
 # github.com/zhifeichen/log v0.0.0-20220113031847-1cc88157a38f
 ## explicit
 github.com/zhifeichen/log
-# golang.org/x/sys v0.0.0-20210303074136-134d130e1a04
+# golang.org/x/sys v0.1.0
 ## explicit
-golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/unix
 # gopkg.in/natefinch/lumberjack.v2 v2.0.0
 gopkg.in/natefinch/lumberjack.v2
